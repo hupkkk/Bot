@@ -1,0 +1,16 @@
+{
+  "name": "bot-telegram-cau",
+  "version": "1.0.0",
+  "description": "Bot phân tích cầu lên/xuống từ ảnh",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "dependencies": {
+    "node-telegram-bot-api": "^0.61.0",
+    "sharp": "^0.32.6"
+  },
+  "engines": {
+    "node": ">=14.0.0"
+  }
+}
