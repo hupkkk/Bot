@@ -1,45 +1,33 @@
-const express = require('express');
 const TelegramBot = require('node-telegram-bot-api');
 const axios = require('axios');
 const { analyzeImage } = require('./analyzer');
-const crypto = require('crypto');
 
 const TOKEN = process.env.BOT_TOKEN || '8642547853:AAHW-oXEuz2tikY9qv1WspSemU_6sfhF6Yc';
-const WEBHOOK_URL = process.env.WEBHOOK_URL || 'https://your-app-name.onrender.com/webhook'; // THAY ĐỔI!
-
-const app = express();
-app.use(express.json());
-
-// Khởi tạo bot với polling: false để dùng webhook
-const bot = new TelegramBot(TOKEN, { polling: false });
-
-// Xóa webhook cũ và đặt webhook mới khi khởi động
-async function setupWebhook() {
-  try {
-    // Xóa webhook cũ
-    await bot.deleteWebHook();
-    console.log('🗑️ Đã xóa webhook cũ');
-    
-    // Đặt webhook mới
-    await bot.setWebHook(WEBHOOK_URL);
-    console.log(`✅ Webhook đã được đặt tại: ${WEBHOOK_URL}`);
-  } catch (error) {
-    console.error('❌ Lỗi thiết lập webhook:', error);
-  }
-}
-
-// Route webhook
-app.post('/webhook', (req, res) => {
-  try {
-    bot.processUpdate(req.body);
-    res.sendStatus(200);
-  } catch (error) {
-    console.error('❌ Lỗi xử lý webhook:', error);
-    res.sendStatus(500);
+const bot = new TelegramBot(TOKEN, { 
+  polling: {
+    interval: 300,
+    autoStart: true,
+    params: {
+      timeout: 10
+    }
   }
 });
 
-// Định tuyến /start
+// Xử lý lỗi polling
+bot.on('polling_error', (error) => {
+  console.error('Polling error:', error.message);
+  // Nếu lỗi 409, bot đang chạy ở nơi khác
+  if (error.message.includes('409')) {
+    console.log('⚠️ Bot đang chạy ở nơi khác, đang thử khởi động lại...');
+    setTimeout(() => {
+      bot.stopPolling();
+      setTimeout(() => bot.startPolling(), 2000);
+    }, 1000);
+  }
+});
+
+console.log('✅ Bot đang khởi động...');
+
 bot.onText(/\/start/, (msg) => {
   const chatId = msg.chat.id;
   const welcome = `Xin chào, tôi là AI của nick name @hahakk123 và chắc hẳn bạn tìm đến tôi vì mục đích riêng, nhưng dù sao thì bạn chỉ cần đưa ảnh cầu cho tôi và tôi sẽ dự đoán ngay cho bạn, để bạn hiểu hơn về bot thì ở đây:
@@ -53,7 +41,6 @@ bot.onText(/\/start/, (msg) => {
   bot.sendMessage(chatId, welcome);
 });
 
-// Hàm xử lý ảnh
 async function handleImage(chatId, fileId) {
   try {
     const fileLink = await bot.getFileLink(fileId);
@@ -97,10 +84,9 @@ bot.on('document', (msg) => {
   handleImage(chatId, doc.file_id);
 });
 
-// Khởi động server
-const PORT = process.env.PORT || 3000;
-app.listen(PORT, async () => {
-  console.log(`🚀 Server đang chạy trên cổng ${PORT}`);
-  await setupWebhook();
-  console.log('✅ Bot đã sẵn sàng!');
+console.log('✅ Bot đã sẵn sàng!');
+
+// Giữ bot chạy
+process.on('uncaughtException', (err) => {
+  console.error('❌ Uncaught Exception:', err);
 });
